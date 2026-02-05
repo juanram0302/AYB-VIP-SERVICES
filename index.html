@@ -1458,141 +1458,174 @@ if (FB_READY) {
 // ═══════════════════════════════════════════════════════════
 // 🤖 SISTEMA DE AUTO-PRECIO (Base de datos de precios RD)
 // ═══════════════════════════════════════════════════════════
-// Base de precios actualizada — fuentes: MERCADOM ene/2026, ProConsumidor, supermercados SD
-const PRECIOS_RD = {
-  // ═══ CARNES ═══
-  "res": { precio: 170, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "bistec": { precio: 170, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "carne de res": { precio: 170, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "carne molida": { precio: 140, u: "lb", fuente: "Supermercados SD, ene 2026", fecha: "2026-01" },
-  "cerdo": { precio: 120, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "chuleta": { precio: 120, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "chuleta ahumada": { precio: 110, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "costilla": { precio: 130, u: "lb", fuente: "Supermercados SD, ene 2026", fecha: "2026-01" },
-  "longaniza": { precio: 100, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  // ═══ AVES ═══
-  "pollo": { precio: 84, u: "lb", fuente: "Supermercados SD, ene 2026", fecha: "2026-01" },
-  "pechuga": { precio: 152, u: "lb", fuente: "Expatistan SD, ene 2026", fecha: "2026-01" },
-  "pechuga de pollo": { precio: 152, u: "lb", fuente: "Expatistan SD, ene 2026", fecha: "2026-01" },
-  "muslo": { precio: 75, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "alitas": { precio: 85, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "pollo entero": { precio: 84, u: "lb", fuente: "Jumbo.com.do, 2025", fecha: "2025-12" },
-  // ═══ PESCADOS Y MARISCOS ═══
-  "dorado": { precio: 250, u: "lb", fuente: "Pescaderías SD, 2025", fecha: "2025-12" },
-  "dorado filete": { precio: 250, u: "lb", fuente: "Pescaderías SD, 2025", fecha: "2025-12" },
-  "salmon": { precio: 450, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "camarón": { precio: 350, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "camarones": { precio: 350, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "bacalao": { precio: 180, u: "lb", fuente: "Mercados SD, 2025", fecha: "2025-12" },
-  "atún": { precio: 90, u: "lata", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "sardina": { precio: 65, u: "lata", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  // ═══ GRANOS ═══
-  "habichuelas rojas": { precio: 60, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "habichuelas negras": { precio: 55, u: "lb", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  "habichuelas pintas": { precio: 45, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "habichuela": { precio: 60, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "guandules secos": { precio: 65, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "guandules verdes": { precio: 110, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "guandules": { precio: 65, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "lentejas": { precio: 45, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "garbanzos": { precio: 55, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  // ═══ ARROZ ═══
-  "arroz": { precio: 45, u: "lb", fuente: "Supermercados/colmados SD, ene 2026", fecha: "2026-01" },
-  "arroz largo grano": { precio: 45, u: "lb", fuente: "Supermercados/colmados SD, ene 2026", fecha: "2026-01" },
-  "arroz selecto": { precio: 37, u: "lb", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  // ═══ VEGETALES ═══
-  "cebolla": { precio: 40, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "cebolla roja": { precio: 40, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "ajo": { precio: 160, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "ajo importado": { precio: 160, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "tomate": { precio: 45, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "tomates": { precio: 45, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "lechuga": { precio: 13, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "lechuga repollada": { precio: 13, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "plátano maduro": { precio: 25, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "plátanos maduros": { precio: 25, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "plátano verde": { precio: 23, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "plátanos verdes": { precio: 23, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "plátano": { precio: 25, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "guineo verde": { precio: 5, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "guineo": { precio: 5, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "papa": { precio: 35, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "yuca": { precio: 35, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "yautía": { precio: 45, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "zanahoria": { precio: 25, u: "lb", fuente: "Mercados SD, 2025", fecha: "2025-12" },
-  "ají cubanela": { precio: 25, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "ají gustoso": { precio: 75, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "ají morrón": { precio: 40, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "berenjena": { precio: 15, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "brócoli": { precio: 50, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "apio": { precio: 30, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "repollo": { precio: 110, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "pepino": { precio: 15, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "tayota": { precio: 25, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "batata": { precio: 33, u: "lb", fuente: "Primicias dic 2025", fecha: "2025-12" },
-  "remolacha": { precio: 20, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "espinaca": { precio: 60, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "maíz": { precio: 60, u: "lata", fuente: "Inespre, 2025", fecha: "2025-12" },
-  "aguacate": { precio: 30, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  // ═══ FRUTAS ═══
-  "naranja": { precio: 12, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "limón": { precio: 60, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "piña": { precio: 60, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "chinola": { precio: 18, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "mango": { precio: 15, u: "und", fuente: "Mercados SD, 2025", fecha: "2025" },
-  "lechosa": { precio: 18, u: "lb", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "coco seco": { precio: 50, u: "und", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  // ═══ LÁCTEOS ═══
-  "queso mozzarella": { precio: 200, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "queso blanco": { precio: 142, u: "lb", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  "queso": { precio: 142, u: "lb", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  "queso de freír": { precio: 120, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "crema de leche": { precio: 185, u: "lt", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "leche": { precio: 62, u: "lt", fuente: "ProConsumidor 2025", fecha: "2025-07" },
-  "leche en polvo": { precio: 85, u: "sobre", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  "mantequilla": { precio: 165, u: "lb", fuente: "Inespre dic 2024", fecha: "2024-12" },
-  "huevos": { precio: 6.83, u: "und", fuente: "MERCADOM 22/ene/2026 (RD$205/30)", fecha: "2026-01-22" },
-  "huevo": { precio: 6.83, u: "und", fuente: "MERCADOM 22/ene/2026 (RD$205/30)", fecha: "2026-01-22" },
-  "yogurt": { precio: 45, u: "und", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  // ═══ CONDIMENTOS ═══
-  "sal": { precio: 15, u: "lb", fuente: "Inespre/supermercados, 2025", fecha: "2025-12" },
-  "orégano": { precio: 50, u: "lb", fuente: "Inespre/mercados, dic 2025", fecha: "2025-12" },
-  "pimienta": { precio: 80, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "cilantro": { precio: 50, u: "paq", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "sazón": { precio: 50, u: "paq", fuente: "Inespre, 2025", fecha: "2025" },
-  "vinagre": { precio: 18, u: "bot", fuente: "Inespre, 2025", fecha: "2025" },
-  "canela": { precio: 120, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  // ═══ ACEITES ═══
-  "aceite vegetal": { precio: 615, u: "gal", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "aceite crisol": { precio: 615, u: "gal", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  "aceite de oliva": { precio: 450, u: "lt", fuente: "Supermercados SD, ene 2026", fecha: "2026-01" },
-  "aceite": { precio: 615, u: "gal", fuente: "MERCADOM 22/ene/2026", fecha: "2026-01-22" },
-  // ═══ HARINAS Y PASTAS ═══
-  "harina de trigo": { precio: 28, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "harina de maíz": { precio: 20, u: "lb", fuente: "Inespre, 2025", fecha: "2025" },
-  "harina": { precio: 28, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "pasta": { precio: 35, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "pasta espaguetis": { precio: 35, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "espaguetis": { precio: 35, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "pan": { precio: 10, u: "und", fuente: "Panaderías SD, 2025", fecha: "2025-12" },
-  "pan de sándwich": { precio: 120, u: "paq", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  // ═══ ENLATADOS ═══
-  "salsa de tomate": { precio: 120, u: "lt", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "pasta de tomate": { precio: 45, u: "lata", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "guandules enlatados": { precio: 69, u: "lata", fuente: "Inespre, 2024", fecha: "2024-12" },
-  // ═══ EMBUTIDOS ═══
-  "salami": { precio: 75, u: "lb", fuente: "Inespre dic 2024", fecha: "2024-12" },
-  "jamón": { precio: 120, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "jamoneta": { precio: 100, u: "lb", fuente: "Inespre dic 2024", fecha: "2024-12" },
-  "salchicha": { precio: 70, u: "lb", fuente: "Inespre dic 2024", fecha: "2024-12" },
-  // ═══ OTROS ═══
-  "azúcar": { precio: 34, u: "lb", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  "azúcar crema": { precio: 34, u: "lb", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  "azúcar blanca": { precio: 43, u: "lb", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-  "café": { precio: 80, u: "lb", fuente: "Supermercados SD, 2025", fecha: "2025-12" },
-  "chocolate": { precio: 70, u: "caja", fuente: "Inespre, 2025", fecha: "2025" },
-  "avena": { precio: 90, u: "paq", fuente: "ProConsumidor jul 2025", fecha: "2025-07" },
-};
+// Los precios se cargan desde precios_rd.json (archivo externo actualizable)
+let PRECIOS_RD = {};
+let preciosLastUpdate = null;
+
+async function cargarPreciosExternos() {
+  try {
+    const resp = await fetch('./precios_rd.json?t=' + Date.now());
+    if (resp.ok) {
+      const data = await resp.json();
+      PRECIOS_RD = data.productos || {};
+      preciosLastUpdate = data.actualizado || null;
+      preciosZonas = data.zonas || {};
+      preciosSupers = data.supermercados || {};
+      console.log(`💰 Precios cargados: ${Object.keys(PRECIOS_RD).length} productos (${preciosLastUpdate})`);
+      verificarRecordatorioPrecios();
+    } else {
+      console.warn('⚠️ No se encontró precios_rd.json, usando base vacía');
+    }
+  } catch(e) {
+    console.warn('⚠️ Error cargando precios_rd.json:', e.message);
+  }
+}
+
+let preciosZonas = {};
+let preciosSupers = {};
+let zonaSeleccionada = localStorage.getItem('ayb-zona') || 'santo_domingo';
+let showComparador = false;
+
+function setZona(z) { zonaSeleccionada = z; localStorage.setItem('ayb-zona', z); renderPage(); }
+
+function getAjusteZona() {
+  return (preciosZonas[zonaSeleccionada] && preciosZonas[zonaSeleccionada].ajuste) || 1.0;
+}
+
+function compararSupermercados() {
+  const items = inventory.map(inv);
+  const supers = Object.keys(preciosSupers);
+  const totales = {};
+  const detalles = {};
+  
+  supers.forEach(s => { totales[s] = 0; detalles[s] = []; });
+  
+  const ajuste = getAjusteZona();
+  let productosConComparacion = 0;
+  
+  for (const item of items) {
+    const found = buscarPrecioLocal(item.nombre);
+    if (found) {
+      const prodData = PRECIOS_RD[item.nombre.toLowerCase().trim()];
+      if (prodData && prodData.porSuper) {
+        productosConComparacion++;
+        for (const s of supers) {
+          if (prodData.porSuper[s]) {
+            const precioAjustado = Math.round(prodData.porSuper[s] * ajuste * 100) / 100;
+            const costoTotal = precioAjustado * (item.cant || 1);
+            totales[s] += costoTotal;
+            detalles[s].push({ nombre: item.nombre, precio: precioAjustado, cant: item.cant || 1, u: item.u, total: costoTotal });
+          }
+        }
+      }
+    }
+  }
+  
+  return { totales, detalles, productosConComparacion, totalProductos: items.length };
+}
+
+function renderComparador() {
+  if (!showComparador) return '';
+  
+  const comp = compararSupermercados();
+  const supersConDatos = Object.entries(comp.totales)
+    .filter(([k, v]) => v > 0)
+    .sort((a, b) => a[1] - b[1]);
+  
+  if (supersConDatos.length === 0) {
+    return `<div class="card fade-up" style="margin-top:16px;border:1px solid rgba(243,156,18,0.2)">
+      <h4 style="color:var(--orange);margin:0">🏪 Comparador de Supermercados</h4>
+      <p style="color:var(--text-dim);font-size:12px;margin:8px 0 0">No hay datos de precios por supermercado disponibles. Actualiza tu archivo precios_rd.json.</p>
+    </div>`;
+  }
+  
+  const masBarato = supersConDatos[0];
+  const masCaro = supersConDatos[supersConDatos.length - 1];
+  const ahorro = masCaro[1] - masBarato[1];
+  const zonaNombre = (preciosZonas[zonaSeleccionada] && preciosZonas[zonaSeleccionada].nombre) || 'Santo Domingo';
+  
+  return `<div class="card fade-up" style="margin-top:16px;border:1px solid rgba(243,156,18,0.2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <h4 style="color:var(--orange);margin:0">🏪 Comparador de Supermercados</h4>
+        <p style="color:var(--text-dim);font-size:11px;margin:4px 0 0">Costo total de tu inventario actual (${comp.productosConComparacion}/${comp.totalProductos} productos con datos) · Zona: ${zonaNombre}</p>
+      </div>
+      <select class="input" style="margin:0;width:220px;font-size:12px" onchange="setZona(this.value)">
+        ${Object.entries(preciosZonas).map(([k, v]) => `<option value="${k}" ${zonaSeleccionada === k ? 'selected' : ''}>${v.nombre}${v.ajuste > 1 ? ' (+' + Math.round((v.ajuste - 1) * 100) + '%)' : ''}</option>`).join('')}
+      </select>
+    </div>
+    
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      ${supersConDatos.map(([key, total], i) => {
+        const s = preciosSupers[key] || {};
+        const esMasBarato = i === 0;
+        const esMasCaro = i === supersConDatos.length - 1;
+        const diffPct = masBarato[1] > 0 ? Math.round(((total - masBarato[1]) / masBarato[1]) * 100) : 0;
+        return `<div style="flex:1;min-width:140px;padding:12px;border-radius:10px;background:${esMasBarato ? 'rgba(46,204,113,0.12)' : esMasCaro ? 'rgba(231,76,60,0.08)' : 'rgba(255,255,255,0.04)'};border:1px solid ${esMasBarato ? 'rgba(46,204,113,0.3)' : 'rgba(255,255,255,0.08)'};text-align:center;position:relative">
+          ${esMasBarato ? '<div style="position:absolute;top:-8px;right:-8px;background:var(--green);color:#fff;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700">💰 MÁS BARATO</div>' : ''}
+          <div style="font-size:20px;margin-bottom:4px">${s.logo || '🏪'}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-primary)">${s.nombre || key}</div>
+          <div style="font-size:18px;font-weight:800;color:${esMasBarato ? 'var(--green)' : esMasCaro ? 'var(--red)' : 'var(--orange)'};margin:6px 0">RD$${total.toLocaleString('es-DO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
+          ${diffPct > 0 ? `<div style="font-size:10px;color:var(--red)">+${diffPct}% vs más barato</div>` : '<div style="font-size:10px;color:var(--green)">✓ Mejor precio</div>'}
+        </div>`;
+      }).join('')}
+    </div>
+    
+    ${ahorro > 0 ? `<div style="padding:10px 16px;border-radius:8px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.2);text-align:center;margin-bottom:12px">
+      <span style="font-size:14px;color:var(--green);font-weight:700">💰 Comprando en ${(preciosSupers[masBarato[0]] || {}).nombre || masBarato[0]} te ahorras RD$${ahorro.toLocaleString('es-DO', {minimumFractionDigits: 0, maximumFractionDigits: 0})} vs ${(preciosSupers[masCaro[0]] || {}).nombre || masCaro[0]}</span>
+    </div>` : ''}
+    
+    <details style="margin-top:8px">
+      <summary style="cursor:pointer;color:var(--text-muted);font-size:12px;padding:4px 0">📋 Ver desglose por producto del más barato (${(preciosSupers[masBarato[0]] || {}).nombre})</summary>
+      <div style="max-height:300px;overflow-y:auto;margin-top:8px">
+        <table style="width:100%;font-size:11px">
+          <thead><tr><th style="text-align:left">Producto</th><th>Cant</th><th>Precio/u</th><th>Total</th></tr></thead>
+          <tbody>${(comp.detalles[masBarato[0]] || []).map(d => `<tr>
+            <td style="color:var(--text-primary)">${d.nombre}</td>
+            <td style="text-align:center;color:var(--text-muted)">${d.cant} ${d.u}</td>
+            <td style="text-align:center;color:var(--orange)">RD$${d.precio.toFixed(2)}</td>
+            <td style="text-align:center;color:var(--green);font-weight:600">RD$${d.total.toFixed(2)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </details>
+    
+    <p style="color:var(--text-dim);font-size:10px;margin:12px 0 0;text-align:center">⚠️ Precios referenciales basados en fuentes oficiales (MERCADOM, ProConsumidor) y supermercados. Pueden variar. Actualizado: ${preciosLastUpdate || 'N/A'}</p>
+  </div>`;
+}
+
+// Cargar precios al iniciar
+cargarPreciosExternos();
+
+// ═══════════════════════════════════════════════════════════
+// 🔔 RECORDATORIO DE ACTUALIZACIÓN DE PRECIOS (cada 15 días)
+// ═══════════════════════════════════════════════════════════
+function verificarRecordatorioPrecios() {
+  if (!preciosLastUpdate) return;
+  const lastDate = new Date(preciosLastUpdate);
+  const hoy = new Date();
+  const diasDesdeUpdate = Math.floor((hoy - lastDate) / (1000 * 60 * 60 * 24));
+  
+  if (diasDesdeUpdate >= 15) {
+    setTimeout(() => {
+      addNotif(`🔔 ¡Han pasado ${diasDesdeUpdate} días desde la última actualización de precios! (${lastDate.toLocaleDateString('es-DO')})`);
+      addNotif(`💡 Pídele a Claude: "Actualízame los precios del inventario" para obtener precios frescos de fuentes oficiales.`);
+    }, 3000);
+  } else if (diasDesdeUpdate >= 12) {
+    setTimeout(() => {
+      addNotif(`📅 Precios actualizados hace ${diasDesdeUpdate} días. Próxima actualización sugerida en ${15 - diasDesdeUpdate} día${15 - diasDesdeUpdate > 1 ? 's' : ''}.`);
+    }, 5000);
+  }
+}
+
+function obtenerInfoPrecios() {
+  const total = Object.keys(PRECIOS_RD).length;
+  if (!preciosLastUpdate) return `${total} productos · Sin fecha de actualización`;
+  const lastDate = new Date(preciosLastUpdate);
+  const dias = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+  const estado = dias >= 15 ? '🔴 Desactualizado' : dias >= 10 ? '🟡 Por vencer' : '🟢 Vigente';
+  return `${total} productos · ${estado} · Actualizado: ${lastDate.toLocaleDateString('es-DO')} (hace ${dias} días)`;
+}
 
 // Precios personalizados guardados por el usuario
 let preciosCustom = JSON.parse(localStorage.getItem('ayb-precios-custom') || '{}');
@@ -2673,7 +2706,9 @@ function renderInventario() {
         ${CATEGORIES.map(c=>`<option ${invCat===c?'selected':''}>${c}</option>`).join('')}
       </select>
       <button class="btn btn-primary" onclick="invShowAdd=true;invEditId=null;autoPrecios={buscando:false,resultado:null,error:null};renderPage()">+ Agregar</button>
-      <button class="btn btn-sm" onclick="actualizarTodosPrecios()" style="background:linear-gradient(135deg,#c41e1e,#e85d04);color:#fff;font-size:11px;padding:8px 12px" title="Actualizar todos los precios con IA">🤖 Actualizar precios</button>
+      <button class="btn btn-sm" onclick="actualizarTodosPrecios()" style="background:linear-gradient(135deg,#c41e1e,#e85d04);color:#fff;font-size:11px;padding:8px 12px" title="Actualizar todos los precios con base RD">🤖 Actualizar precios</button>
+      <button class="btn btn-sm" onclick="showComparador=!showComparador;renderPage()" style="background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;font-size:11px;padding:8px 12px">🏪 Comparar supermercados</button>
+      ${tag('var(--text-dim)', obtenerInfoPrecios())}
       ${tag('var(--text-muted)', inventory.length+' productos')}
       ${FB_READY?tag('var(--green)','🔥 Sincronizado'):tag('var(--orange)','⚠️ Demo')}
     </div>
@@ -2698,7 +2733,8 @@ function renderInventario() {
           </tr>`;
         }).join('')}</tbody>
       </table>
-    </div>`;
+    </div>
+    ${renderComparador()}`;
 }
 
 async function saveInvItem() {
