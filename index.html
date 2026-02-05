@@ -985,16 +985,27 @@ const UNIT_CONVERSIONS = {
 // ═══════════════════════════════════════════════════════════
 // INVENTORY
 // ═══════════════════════════════════════════════════════════
-const CATEGORIES = ["Carnes","Aves","Pescados","Granos","Arroz","Vegetales","Frutas","Lácteos","Condimentos","Aceites","Enlatados","Harinas","Bebidas","Snacks","Limpieza","Desechables","Otros"];
+const CATEGORIES = ["Res","Cerdo","Aves","Pescados","Mariscos","Granos","Arroz","Vegetales","Frutas","Lácteos","Condimentos","Aceites","Enlatados","Harinas","Embutidos","Bebidas","Snacks","Limpieza","Desechables","Otros"];
+
+// Subcategorías de cortes para filtro detallado
+const SUBCATS = {
+  "Res": ["Bistec","Carne molida","Costilla","Falda","Churrasco","Punta trasera","Pecho","Osobuco","Rabo"],
+  "Cerdo": ["Chuleta","Chuleta ahumada","Costilla","Pierna","Lomo","Pernil","Chicharrón"],
+  "Aves": ["Pechuga","Muslo","Muslo ancho","Alitas","Pollo entero","Cuarto trasero","Menudencia"],
+  "Pescados": ["Dorado","Chillo","Mero","Salmón","Bacalao","Tilapia","Atún fresco"],
+  "Mariscos": ["Camarones","Langosta","Pulpo","Calamar","Lambí"]
+};
+
+let invSubCat = '';
 
 let inventory = [
   {id:1,nombre:"Arroz largo grano",cat:"Arroz",cant:200,u:"lb",min:50,precio:45.00},
   {id:2,nombre:"Habichuelas rojas",cat:"Granos",cant:80,u:"lb",min:20,precio:60.00},
   {id:3,nombre:"Habichuelas negras",cat:"Granos",cant:60,u:"lb",min:20,precio:55.00},
-  {id:4,nombre:"Pechuga de pollo",cat:"Aves",cant:150,u:"lb",min:40,precio:152.00},
-  {id:5,nombre:"Carne de res (bistec)",cat:"Carnes",cant:100,u:"lb",min:30,precio:170.00},
-  {id:6,nombre:"Cerdo",cat:"Carnes",cant:80,u:"lb",min:25,precio:120.00},
-  {id:7,nombre:"Dorado filete",cat:"Pescados",cant:50,u:"lb",min:15,precio:250.00},
+  {id:4,nombre:"Pechuga de pollo",cat:"Aves",sub:"Pechuga",cant:150,u:"lb",min:40,precio:152.00},
+  {id:5,nombre:"Bistec de res",cat:"Res",sub:"Bistec",cant:100,u:"lb",min:30,precio:170.00},
+  {id:6,nombre:"Chuleta de cerdo",cat:"Cerdo",sub:"Chuleta",cant:80,u:"lb",min:25,precio:120.00},
+  {id:7,nombre:"Dorado filete",cat:"Pescados",sub:"Dorado",cant:50,u:"lb",min:15,precio:250.00},
   {id:8,nombre:"Plátanos maduros",cat:"Vegetales",cant:120,u:"und",min:30,precio:25.00},
   {id:9,nombre:"Plátanos verdes",cat:"Vegetales",cant:100,u:"und",min:30,precio:23.00},
   {id:10,nombre:"Cebolla",cat:"Vegetales",cant:40,u:"lb",min:10,precio:40.00},
@@ -1497,31 +1508,76 @@ function compararSupermercados() {
   const supers = Object.keys(preciosSupers);
   const totales = {};
   const detalles = {};
+  const productosPorSuper = {};
   
-  supers.forEach(s => { totales[s] = 0; detalles[s] = []; });
+  supers.forEach(s => { totales[s] = 0; detalles[s] = []; productosPorSuper[s] = 0; });
   
   const ajuste = getAjusteZona();
   let productosConComparacion = 0;
   
-  for (const item of items) {
-    const found = buscarPrecioLocal(item.nombre);
-    if (found) {
-      const prodData = PRECIOS_RD[item.nombre.toLowerCase().trim()];
-      if (prodData && prodData.porSuper) {
-        productosConComparacion++;
-        for (const s of supers) {
-          if (prodData.porSuper[s]) {
-            const precioAjustado = Math.round(prodData.porSuper[s] * ajuste * 100) / 100;
-            const costoTotal = precioAjustado * (item.cant || 1);
-            totales[s] += costoTotal;
-            detalles[s].push({ nombre: item.nombre, precio: precioAjustado, cant: item.cant || 1, u: item.u, total: costoTotal });
+  // Deduplicar por nombre (en caso de duplicados en Firebase)
+  const vistos = new Set();
+  const itemsUnicos = items.filter(item => {
+    const key = item.nombre.toLowerCase().trim();
+    if (vistos.has(key)) return false;
+    vistos.add(key);
+    return true;
+  });
+  
+  for (const item of itemsUnicos) {
+    // Buscar datos de precio con matching mejorado
+    const key = item.nombre.toLowerCase().trim();
+    let prodData = PRECIOS_RD[key];
+    
+    // Si no hay match exacto, buscar parcial
+    if (!prodData || !prodData.porSuper) {
+      for (const [k, v] of Object.entries(PRECIOS_RD)) {
+        if (v.porSuper && (key.includes(k) || k.includes(key))) {
+          prodData = v;
+          break;
+        }
+      }
+    }
+    // Buscar por palabras clave
+    if (!prodData || !prodData.porSuper) {
+      const palabras = key.split(/\s+/).filter(p => p.length > 3);
+      for (const palabra of palabras) {
+        for (const [k, v] of Object.entries(PRECIOS_RD)) {
+          if (v.porSuper && k.includes(palabra)) {
+            prodData = v;
+            break;
           }
+        }
+        if (prodData && prodData.porSuper) break;
+      }
+    }
+    
+    if (prodData && prodData.porSuper) {
+      productosConComparacion++;
+      for (const s of supers) {
+        if (prodData.porSuper[s]) {
+          const precioAjustado = Math.round(prodData.porSuper[s] * ajuste * 100) / 100;
+          // Usar PRECIO UNITARIO, no multiplicar por stock
+          totales[s] += precioAjustado;
+          productosPorSuper[s]++;
+          detalles[s].push({ nombre: item.nombre, precio: precioAjustado, u: prodData.u || item.u });
         }
       }
     }
   }
   
-  return { totales, detalles, productosConComparacion, totalProductos: items.length };
+  // Solo incluir supermercados que tengan datos de al menos 60% de los productos comparables
+  const minProductos = Math.floor(productosConComparacion * 0.5);
+  const supersValidos = {};
+  const detallesValidos = {};
+  for (const s of supers) {
+    if (productosPorSuper[s] >= minProductos && productosPorSuper[s] > 0) {
+      supersValidos[s] = totales[s];
+      detallesValidos[s] = detalles[s];
+    }
+  }
+  
+  return { totales: supersValidos, detalles: detallesValidos, productosConComparacion, totalProductos: itemsUnicos.length };
 }
 
 function renderComparador() {
@@ -1535,7 +1591,7 @@ function renderComparador() {
   if (supersConDatos.length === 0) {
     return `<div class="card fade-up" style="margin-top:16px;border:1px solid rgba(243,156,18,0.2)">
       <h4 style="color:var(--orange);margin:0">🏪 Comparador de Supermercados</h4>
-      <p style="color:var(--text-dim);font-size:12px;margin:8px 0 0">No hay datos de precios por supermercado disponibles. Actualiza tu archivo precios_rd.json.</p>
+      <p style="color:var(--text-dim);font-size:12px;margin:8px 0 0">No hay suficientes datos de precios por supermercado. Actualiza tu archivo precios_rd.json.</p>
     </div>`;
   }
   
@@ -1548,7 +1604,7 @@ function renderComparador() {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div>
         <h4 style="color:var(--orange);margin:0">🏪 Comparador de Supermercados</h4>
-        <p style="color:var(--text-dim);font-size:11px;margin:4px 0 0">Costo total de tu inventario actual (${comp.productosConComparacion}/${comp.totalProductos} productos con datos) · Zona: ${zonaNombre}</p>
+        <p style="color:var(--text-dim);font-size:11px;margin:4px 0 0">Suma de precios unitarios de ${comp.productosConComparacion} productos con datos · Zona: ${zonaNombre}</p>
       </div>
       <select class="input" style="margin:0;width:220px;font-size:12px" onchange="setZona(this.value)">
         ${Object.entries(preciosZonas).map(([k, v]) => `<option value="${k}" ${zonaSeleccionada === k ? 'selected' : ''}>${v.nombre}${v.ajuste > 1 ? ' (+' + Math.round((v.ajuste - 1) * 100) + '%)' : ''}</option>`).join('')}
@@ -1561,36 +1617,50 @@ function renderComparador() {
         const esMasBarato = i === 0;
         const esMasCaro = i === supersConDatos.length - 1;
         const diffPct = masBarato[1] > 0 ? Math.round(((total - masBarato[1]) / masBarato[1]) * 100) : 0;
-        return `<div style="flex:1;min-width:140px;padding:12px;border-radius:10px;background:${esMasBarato ? 'rgba(46,204,113,0.12)' : esMasCaro ? 'rgba(231,76,60,0.08)' : 'rgba(255,255,255,0.04)'};border:1px solid ${esMasBarato ? 'rgba(46,204,113,0.3)' : 'rgba(255,255,255,0.08)'};text-align:center;position:relative">
+        return `<div style="flex:1;min-width:130px;padding:12px;border-radius:10px;background:${esMasBarato ? 'rgba(46,204,113,0.12)' : esMasCaro ? 'rgba(231,76,60,0.08)' : 'rgba(255,255,255,0.04)'};border:1px solid ${esMasBarato ? 'rgba(46,204,113,0.3)' : 'rgba(255,255,255,0.08)'};text-align:center;position:relative">
           ${esMasBarato ? '<div style="position:absolute;top:-8px;right:-8px;background:var(--green);color:#fff;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700">💰 MÁS BARATO</div>' : ''}
           <div style="font-size:20px;margin-bottom:4px">${s.logo || '🏪'}</div>
           <div style="font-size:12px;font-weight:700;color:var(--text-primary)">${s.nombre || key}</div>
-          <div style="font-size:18px;font-weight:800;color:${esMasBarato ? 'var(--green)' : esMasCaro ? 'var(--red)' : 'var(--orange)'};margin:6px 0">RD$${total.toLocaleString('es-DO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
-          ${diffPct > 0 ? `<div style="font-size:10px;color:var(--red)">+${diffPct}% vs más barato</div>` : '<div style="font-size:10px;color:var(--green)">✓ Mejor precio</div>'}
+          <div style="font-size:16px;font-weight:800;color:${esMasBarato ? 'var(--green)' : esMasCaro ? 'var(--red)' : 'var(--orange)'};margin:6px 0">RD$${total.toLocaleString('es-DO', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+          <div style="font-size:10px;color:var(--text-dim)">${(comp.detalles[key]||[]).length} productos</div>
+          ${diffPct > 0 ? `<div style="font-size:10px;color:var(--red);margin-top:2px">+${diffPct}% más caro</div>` : '<div style="font-size:10px;color:var(--green);margin-top:2px">✓ Mejor precio</div>'}
         </div>`;
       }).join('')}
     </div>
     
     ${ahorro > 0 ? `<div style="padding:10px 16px;border-radius:8px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.2);text-align:center;margin-bottom:12px">
-      <span style="font-size:14px;color:var(--green);font-weight:700">💰 Comprando en ${(preciosSupers[masBarato[0]] || {}).nombre || masBarato[0]} te ahorras RD$${ahorro.toLocaleString('es-DO', {minimumFractionDigits: 0, maximumFractionDigits: 0})} vs ${(preciosSupers[masCaro[0]] || {}).nombre || masCaro[0]}</span>
+      <span style="font-size:13px;color:var(--green);font-weight:700">💰 Comprando en ${(preciosSupers[masBarato[0]] || {}).nombre || masBarato[0]} ahorras RD$${ahorro.toFixed(2)} por unidad vs ${(preciosSupers[masCaro[0]] || {}).nombre || masCaro[0]}</span>
     </div>` : ''}
     
     <details style="margin-top:8px">
-      <summary style="cursor:pointer;color:var(--text-muted);font-size:12px;padding:4px 0">📋 Ver desglose por producto del más barato (${(preciosSupers[masBarato[0]] || {}).nombre})</summary>
-      <div style="max-height:300px;overflow-y:auto;margin-top:8px">
+      <summary style="cursor:pointer;color:var(--text-muted);font-size:12px;padding:4px 0">📋 Ver precios comparados producto por producto</summary>
+      <div style="max-height:400px;overflow-y:auto;margin-top:8px">
         <table style="width:100%;font-size:11px">
-          <thead><tr><th style="text-align:left">Producto</th><th>Cant</th><th>Precio/u</th><th>Total</th></tr></thead>
-          <tbody>${(comp.detalles[masBarato[0]] || []).map(d => `<tr>
-            <td style="color:var(--text-primary)">${d.nombre}</td>
-            <td style="text-align:center;color:var(--text-muted)">${d.cant} ${d.u}</td>
-            <td style="text-align:center;color:var(--orange)">RD$${d.precio.toFixed(2)}</td>
-            <td style="text-align:center;color:var(--green);font-weight:600">RD$${d.total.toFixed(2)}</td>
-          </tr>`).join('')}</tbody>
+          <thead><tr><th style="text-align:left">Producto</th>${supersConDatos.map(([k]) => `<th style="text-align:center">${(preciosSupers[k]||{}).logo||''} ${(preciosSupers[k]||{}).nombre||k}</th>`).join('')}</tr></thead>
+          <tbody>${(() => {
+            // Construir tabla comparativa por producto
+            const allProds = new Set();
+            supersConDatos.forEach(([k]) => (comp.detalles[k]||[]).forEach(d => allProds.add(d.nombre)));
+            return [...allProds].map(nombre => {
+              const precios = supersConDatos.map(([k]) => {
+                const d = (comp.detalles[k]||[]).find(x => x.nombre === nombre);
+                return d ? d.precio : null;
+              });
+              const minP = Math.min(...precios.filter(p => p !== null));
+              return `<tr>
+                <td style="color:var(--text-primary)">${nombre}</td>
+                ${precios.map(p => p !== null 
+                  ? `<td style="text-align:center;color:${p === minP ? 'var(--green)' : 'var(--text-muted)'};font-weight:${p === minP ? '700' : '400'}">RD$${p.toFixed(2)}${p === minP ? ' ✓' : ''}</td>`
+                  : `<td style="text-align:center;color:var(--text-dim)">—</td>`
+                ).join('')}
+              </tr>`;
+            }).join('');
+          })()}</tbody>
         </table>
       </div>
     </details>
     
-    <p style="color:var(--text-dim);font-size:10px;margin:12px 0 0;text-align:center">⚠️ Precios referenciales basados en fuentes oficiales (MERCADOM, ProConsumidor) y supermercados. Pueden variar. Actualizado: ${preciosLastUpdate || 'N/A'}</p>
+    <p style="color:var(--text-dim);font-size:10px;margin:12px 0 0;text-align:center">⚠️ Precios referenciales de fuentes oficiales. Pueden variar por sucursal y ofertas. Actualizado: ${preciosLastUpdate || 'N/A'}</p>
   </div>`;
 }
 
@@ -1979,6 +2049,7 @@ function inv(item) {
     id: item.id,
     nombre: item.nombre,
     cat: item.categoria || item.cat || '',
+    sub: item.sub || '',
     cant: item.cantidad !== undefined ? item.cantidad : (item.cant || 0),
     u: item.unidad || item.u || 'und',
     min: item.minimo !== undefined ? item.minimo : (item.min || 0),
@@ -2645,7 +2716,11 @@ let invMoveId = null;
 function renderInventario() {
   const allNorm = inventory.map(inv);
   const lowStock = allNorm.filter(i=>i.cant<=i.min);
-  const filtered = allNorm.filter(i=>(invCat==='Todos'||i.cat===invCat) && i.nombre.toLowerCase().includes(invSearch.toLowerCase()));
+  const filtered = allNorm.filter(i=>{
+    const catMatch = invCat==='Todos' || i.cat===invCat;
+    const subMatch = !invSubCat || (i.sub && i.sub === invSubCat) || i.nombre.toLowerCase().includes(invSubCat.toLowerCase());
+    return catMatch && subMatch && i.nombre.toLowerCase().includes(invSearch.toLowerCase());
+  });
 
   let formHTML = '';
   if (invShowAdd || invEditId) {
@@ -2655,7 +2730,8 @@ function renderInventario() {
       <h4 style="color:var(--text-primary);margin:0 0 14px">${invEditId?'Editar':'Agregar'} Producto</h4>
       <div class="grid grid-3">
         <div style="grid-column:1/3"><input class="input" id="inv-nombre" placeholder="Nombre del producto" value="${item.nombre}"></div>
-        <select class="input" id="inv-cat">${CATEGORIES.map(c=>`<option ${item.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+        <select class="input" id="inv-cat" onchange="document.getElementById('inv-sub-wrap').innerHTML=renderSubCatSelect(this.value,'${item.sub||''}')">${CATEGORIES.map(c=>`<option ${item.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+        <span id="inv-sub-wrap">${SUBCATS[item.cat] ? `<select class="input" id="inv-sub"><option value="">— Corte/tipo —</option>${SUBCATS[item.cat].map(s=>`<option value="${s}" ${(item.sub||'')===s?'selected':''}>${s}</option>`).join('')}</select>` : '<span></span>'}</span>
         <input class="input" id="inv-cant" type="number" placeholder="Cantidad" value="${item.cant}">
         <select class="input" id="inv-u">${['lb','oz','g','kg','und','lt','gal','caja','paq','bot'].map(u=>`<option ${item.u===u?'selected':''}>${u}</option>`).join('')}</select>
         <input class="input" id="inv-min" type="number" placeholder="Stock mínimo" value="${item.min}">
@@ -2701,10 +2777,14 @@ function renderInventario() {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input placeholder="Buscar producto..." value="${invSearch}" oninput="invSearch=this.value;renderPage()">
       </div>
-      <select class="input" style="margin:0;width:180px" onchange="invCat=this.value;renderPage()">
+      <select class="input" style="margin:0;width:180px" onchange="invCat=this.value;invSubCat='';renderPage()">
         <option ${invCat==='Todos'?'selected':''}>Todos</option>
         ${CATEGORIES.map(c=>`<option ${invCat===c?'selected':''}>${c}</option>`).join('')}
       </select>
+      ${SUBCATS[invCat] ? `<select class="input" style="margin:0;width:160px;font-size:12px" onchange="invSubCat=this.value;renderPage()">
+        <option value="">Todos los cortes</option>
+        ${SUBCATS[invCat].map(s=>`<option value="${s}" ${invSubCat===s?'selected':''}>${s}</option>`).join('')}
+      </select>` : ''}
       <button class="btn btn-primary" onclick="invShowAdd=true;invEditId=null;autoPrecios={buscando:false,resultado:null,error:null};renderPage()">+ Agregar</button>
       <button class="btn btn-sm" onclick="actualizarTodosPrecios()" style="background:linear-gradient(135deg,#c41e1e,#e85d04);color:#fff;font-size:11px;padding:8px 12px" title="Actualizar todos los precios con base RD">🤖 Actualizar precios</button>
       <button class="btn btn-sm" onclick="showComparador=!showComparador;renderPage()" style="background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;font-size:11px;padding:8px 12px">🏪 Comparar supermercados</button>
@@ -2719,7 +2799,7 @@ function renderInventario() {
         <tbody>${filtered.map(item=>{
           const low = item.cant <= item.min;
           return `<tr>
-            <td><span style="color:var(--text-primary);font-weight:500">${item.nombre}</span></td>
+            <td><span style="color:var(--text-primary);font-weight:500">${item.nombre}</span>${item.sub ? `<br><span style="font-size:10px;color:var(--text-dim)">${item.sub}</span>` : ''}</td>
             <td>${tag('var(--text-dim)',item.cat)}</td>
             <td><span style="color:${low?'var(--red)':'var(--green)'};font-weight:700">${item.cant}</span></td>
             <td style="color:var(--text-muted)">${item.min}</td>
@@ -2737,12 +2817,19 @@ function renderInventario() {
     ${renderComparador()}`;
 }
 
+function renderSubCatSelect(cat, currentSub) {
+  if (!SUBCATS[cat]) return '';
+  return `<select class="input" id="inv-sub"><option value="">— Corte/tipo —</option>${SUBCATS[cat].map(s=>`<option value="${s}" ${currentSub===s?'selected':''}>${s}</option>`).join('')}</select>`;
+}
+
 async function saveInvItem() {
   const nombre = document.getElementById('inv-nombre').value;
   if (!nombre) return;
+  const subEl = document.getElementById('inv-sub');
   const data = {
     nombre,
     cat: document.getElementById('inv-cat').value,
+    sub: subEl ? subEl.value : '',
     cant: +document.getElementById('inv-cant').value,
     u: document.getElementById('inv-u').value,
     min: +document.getElementById('inv-min').value,
