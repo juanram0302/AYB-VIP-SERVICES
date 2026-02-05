@@ -1505,162 +1505,161 @@ function getAjusteZona() {
 
 function compararSupermercados() {
   const items = inventory.map(inv);
-  const supers = Object.keys(preciosSupers);
-  const totales = {};
-  const detalles = {};
-  const productosPorSuper = {};
   
-  supers.forEach(s => { totales[s] = 0; detalles[s] = []; productosPorSuper[s] = 0; });
+  // Filtrar por categoría seleccionada (igual que la tabla de inventario)
+  const filtered = items.filter(i => {
+    const catMatch = invCat === 'Todos' || i.cat === invCat;
+    const subMatch = !invSubCat || (i.sub && i.sub === invSubCat) || i.nombre.toLowerCase().includes(invSubCat.toLowerCase());
+    return catMatch && subMatch;
+  });
   
-  const ajuste = getAjusteZona();
-  let productosConComparacion = 0;
-  
-  // Deduplicar por nombre (en caso de duplicados en Firebase)
+  // Deduplicar por nombre
   const vistos = new Set();
-  const itemsUnicos = items.filter(item => {
+  const unicos = filtered.filter(item => {
     const key = item.nombre.toLowerCase().trim();
     if (vistos.has(key)) return false;
     vistos.add(key);
     return true;
   });
   
-  for (const item of itemsUnicos) {
-    // Buscar datos de precio con matching mejorado
+  const ajuste = getAjusteZona();
+  const superKeys = Object.keys(preciosSupers);
+  const resultados = []; // Array de { nombre, u, precios: { super: precio } }
+  
+  for (const item of unicos) {
     const key = item.nombre.toLowerCase().trim();
     let prodData = PRECIOS_RD[key];
     
-    // Si no hay match exacto, buscar parcial
+    // Matching mejorado
     if (!prodData || !prodData.porSuper) {
       for (const [k, v] of Object.entries(PRECIOS_RD)) {
-        if (v.porSuper && (key.includes(k) || k.includes(key))) {
-          prodData = v;
-          break;
-        }
+        if (v.porSuper && (key.includes(k) || k.includes(key))) { prodData = v; break; }
       }
     }
-    // Buscar por palabras clave
     if (!prodData || !prodData.porSuper) {
       const palabras = key.split(/\s+/).filter(p => p.length > 3);
       for (const palabra of palabras) {
         for (const [k, v] of Object.entries(PRECIOS_RD)) {
-          if (v.porSuper && k.includes(palabra)) {
-            prodData = v;
-            break;
-          }
+          if (v.porSuper && k.includes(palabra)) { prodData = v; break; }
         }
         if (prodData && prodData.porSuper) break;
       }
     }
     
     if (prodData && prodData.porSuper) {
-      productosConComparacion++;
-      for (const s of supers) {
+      const precios = {};
+      for (const s of superKeys) {
         if (prodData.porSuper[s]) {
-          const precioAjustado = Math.round(prodData.porSuper[s] * ajuste * 100) / 100;
-          // Usar PRECIO UNITARIO, no multiplicar por stock
-          totales[s] += precioAjustado;
-          productosPorSuper[s]++;
-          detalles[s].push({ nombre: item.nombre, precio: precioAjustado, u: prodData.u || item.u });
+          precios[s] = Math.round(prodData.porSuper[s] * ajuste * 100) / 100;
         }
+      }
+      if (Object.keys(precios).length > 0) {
+        resultados.push({
+          nombre: item.nombre,
+          u: prodData.u || item.u,
+          precios
+        });
       }
     }
   }
   
-  // Solo incluir supermercados que tengan datos de al menos 60% de los productos comparables
-  const minProductos = Math.floor(productosConComparacion * 0.5);
-  const supersValidos = {};
-  const detallesValidos = {};
-  for (const s of supers) {
-    if (productosPorSuper[s] >= minProductos && productosPorSuper[s] > 0) {
-      supersValidos[s] = totales[s];
-      detallesValidos[s] = detalles[s];
-    }
-  }
-  
-  return { totales: supersValidos, detalles: detallesValidos, productosConComparacion, totalProductos: itemsUnicos.length };
+  return { resultados, superKeys, totalFiltrados: unicos.length };
 }
 
 function renderComparador() {
   if (!showComparador) return '';
   
   const comp = compararSupermercados();
-  const supersConDatos = Object.entries(comp.totales)
-    .filter(([k, v]) => v > 0)
-    .sort((a, b) => a[1] - b[1]);
+  const { resultados, superKeys } = comp;
   
-  if (supersConDatos.length === 0) {
+  if (resultados.length === 0) {
     return `<div class="card fade-up" style="margin-top:16px;border:1px solid rgba(243,156,18,0.2)">
       <h4 style="color:var(--orange);margin:0">🏪 Comparador de Supermercados</h4>
-      <p style="color:var(--text-dim);font-size:12px;margin:8px 0 0">No hay suficientes datos de precios por supermercado. Actualiza tu archivo precios_rd.json.</p>
+      <p style="color:var(--text-dim);font-size:12px;margin:8px 0 0">No hay datos de comparación para los productos filtrados.</p>
     </div>`;
   }
   
-  const masBarato = supersConDatos[0];
-  const masCaro = supersConDatos[supersConDatos.length - 1];
-  const ahorro = masCaro[1] - masBarato[1];
+  // Determinar qué supermercados tienen datos suficientes
+  const superConDatos = superKeys.filter(s => {
+    const count = resultados.filter(r => r.precios[s]).length;
+    return count >= resultados.length * 0.4;
+  });
+  
+  // Calcular totales por super (suma de precios unitarios)
+  const totales = {};
+  superConDatos.forEach(s => {
+    totales[s] = resultados.reduce((sum, r) => sum + (r.precios[s] || 0), 0);
+  });
+  
+  const sorted = Object.entries(totales).sort((a, b) => a[1] - b[1]);
+  if (sorted.length === 0) return '';
+  
+  const masBaratoKey = sorted[0][0];
+  const masCaroKey = sorted[sorted.length - 1][0];
   const zonaNombre = (preciosZonas[zonaSeleccionada] && preciosZonas[zonaSeleccionada].nombre) || 'Santo Domingo';
+  const catLabel = invCat === 'Todos' ? 'todo el inventario' : invCat + (invSubCat ? ' → ' + invSubCat : '');
   
   return `<div class="card fade-up" style="margin-top:16px;border:1px solid rgba(243,156,18,0.2)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div>
-        <h4 style="color:var(--orange);margin:0">🏪 Comparador de Supermercados</h4>
-        <p style="color:var(--text-dim);font-size:11px;margin:4px 0 0">Suma de precios unitarios de ${comp.productosConComparacion} productos con datos · Zona: ${zonaNombre}</p>
+        <h4 style="color:var(--orange);margin:0">🏪 Comparador de Supermercados — ${catLabel}</h4>
+        <p style="color:var(--text-dim);font-size:11px;margin:4px 0 0">${resultados.length} productos comparados · Zona: ${zonaNombre}</p>
       </div>
       <select class="input" style="margin:0;width:220px;font-size:12px" onchange="setZona(this.value)">
         ${Object.entries(preciosZonas).map(([k, v]) => `<option value="${k}" ${zonaSeleccionada === k ? 'selected' : ''}>${v.nombre}${v.ajuste > 1 ? ' (+' + Math.round((v.ajuste - 1) * 100) + '%)' : ''}</option>`).join('')}
       </select>
     </div>
     
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      ${supersConDatos.map(([key, total], i) => {
-        const s = preciosSupers[key] || {};
-        const esMasBarato = i === 0;
-        const esMasCaro = i === supersConDatos.length - 1;
-        const diffPct = masBarato[1] > 0 ? Math.round(((total - masBarato[1]) / masBarato[1]) * 100) : 0;
-        return `<div style="flex:1;min-width:130px;padding:12px;border-radius:10px;background:${esMasBarato ? 'rgba(46,204,113,0.12)' : esMasCaro ? 'rgba(231,76,60,0.08)' : 'rgba(255,255,255,0.04)'};border:1px solid ${esMasBarato ? 'rgba(46,204,113,0.3)' : 'rgba(255,255,255,0.08)'};text-align:center;position:relative">
-          ${esMasBarato ? '<div style="position:absolute;top:-8px;right:-8px;background:var(--green);color:#fff;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700">💰 MÁS BARATO</div>' : ''}
-          <div style="font-size:20px;margin-bottom:4px">${s.logo || '🏪'}</div>
-          <div style="font-size:12px;font-weight:700;color:var(--text-primary)">${s.nombre || key}</div>
-          <div style="font-size:16px;font-weight:800;color:${esMasBarato ? 'var(--green)' : esMasCaro ? 'var(--red)' : 'var(--orange)'};margin:6px 0">RD$${total.toLocaleString('es-DO', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-          <div style="font-size:10px;color:var(--text-dim)">${(comp.detalles[key]||[]).length} productos</div>
-          ${diffPct > 0 ? `<div style="font-size:10px;color:var(--red);margin-top:2px">+${diffPct}% más caro</div>` : '<div style="font-size:10px;color:var(--green);margin-top:2px">✓ Mejor precio</div>'}
-        </div>`;
-      }).join('')}
+    <!-- Tabla comparativa producto por producto -->
+    <div style="overflow-x:auto;margin-bottom:16px">
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="background:rgba(0,0,0,0.15)">
+          <th style="text-align:left;padding:8px;min-width:140px">Producto</th>
+          <th style="text-align:center;padding:8px;min-width:50px">Unidad</th>
+          ${sorted.map(([s]) => {
+            const info = preciosSupers[s] || {};
+            const esMasBarato = s === masBaratoKey;
+            return `<th style="text-align:center;padding:8px;min-width:90px;${esMasBarato ? 'background:rgba(46,204,113,0.1)' : ''}">${info.logo || ''} ${info.nombre || s}</th>`;
+          }).join('')}
+        </tr></thead>
+        <tbody>${resultados.map(prod => {
+          const preciosArr = sorted.map(([s]) => prod.precios[s] || null).filter(p => p !== null);
+          const minPrecio = preciosArr.length > 0 ? Math.min(...preciosArr) : 0;
+          const maxPrecio = preciosArr.length > 0 ? Math.max(...preciosArr) : 0;
+          
+          return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+            <td style="padding:8px;color:var(--text-primary);font-weight:500">${prod.nombre}</td>
+            <td style="padding:8px;text-align:center;color:var(--text-dim);font-size:11px">${prod.u}</td>
+            ${sorted.map(([s]) => {
+              const p = prod.precios[s];
+              if (!p) return `<td style="padding:8px;text-align:center;color:var(--text-dim)">—</td>`;
+              const esMejor = p === minPrecio;
+              const esPeor = p === maxPrecio && maxPrecio !== minPrecio;
+              return `<td style="padding:8px;text-align:center;color:${esMejor ? 'var(--green)' : esPeor ? 'var(--red)' : 'var(--text-muted)'};font-weight:${esMejor ? '700' : '400'};${esMejor ? 'background:rgba(46,204,113,0.06)' : ''}">
+                RD$${p.toFixed(2)}${esMejor ? ' ✓' : ''}
+              </td>`;
+            }).join('')}
+          </tr>`;
+        }).join('')}
+        <tr style="border-top:2px solid rgba(255,255,255,0.15);font-weight:700">
+          <td style="padding:10px;color:var(--text-primary)">TOTAL (suma unitarios)</td>
+          <td></td>
+          ${sorted.map(([s, total]) => {
+            const esMejor = s === masBaratoKey;
+            const esPeor = s === masCaroKey;
+            return `<td style="padding:10px;text-align:center;color:${esMejor ? 'var(--green)' : esPeor ? 'var(--red)' : 'var(--orange)'};font-size:13px;${esMejor ? 'background:rgba(46,204,113,0.08)' : ''}">
+              RD$${total.toFixed(2)}${esMejor ? ' 💰' : ''}
+            </td>`;
+          }).join('')}
+        </tr></tbody>
+      </table>
     </div>
     
-    ${ahorro > 0 ? `<div style="padding:10px 16px;border-radius:8px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.2);text-align:center;margin-bottom:12px">
-      <span style="font-size:13px;color:var(--green);font-weight:700">💰 Comprando en ${(preciosSupers[masBarato[0]] || {}).nombre || masBarato[0]} ahorras RD$${ahorro.toFixed(2)} por unidad vs ${(preciosSupers[masCaro[0]] || {}).nombre || masCaro[0]}</span>
+    ${sorted.length >= 2 ? `<div style="padding:10px 16px;border-radius:8px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.2);text-align:center">
+      <span style="font-size:13px;color:var(--green);font-weight:700">💰 Para ${catLabel}: ${(preciosSupers[masBaratoKey]||{}).nombre} es el más barato (ahorras RD$${(totales[masCaroKey] - totales[masBaratoKey]).toFixed(2)} vs ${(preciosSupers[masCaroKey]||{}).nombre})</span>
     </div>` : ''}
     
-    <details style="margin-top:8px">
-      <summary style="cursor:pointer;color:var(--text-muted);font-size:12px;padding:4px 0">📋 Ver precios comparados producto por producto</summary>
-      <div style="max-height:400px;overflow-y:auto;margin-top:8px">
-        <table style="width:100%;font-size:11px">
-          <thead><tr><th style="text-align:left">Producto</th>${supersConDatos.map(([k]) => `<th style="text-align:center">${(preciosSupers[k]||{}).logo||''} ${(preciosSupers[k]||{}).nombre||k}</th>`).join('')}</tr></thead>
-          <tbody>${(() => {
-            // Construir tabla comparativa por producto
-            const allProds = new Set();
-            supersConDatos.forEach(([k]) => (comp.detalles[k]||[]).forEach(d => allProds.add(d.nombre)));
-            return [...allProds].map(nombre => {
-              const precios = supersConDatos.map(([k]) => {
-                const d = (comp.detalles[k]||[]).find(x => x.nombre === nombre);
-                return d ? d.precio : null;
-              });
-              const minP = Math.min(...precios.filter(p => p !== null));
-              return `<tr>
-                <td style="color:var(--text-primary)">${nombre}</td>
-                ${precios.map(p => p !== null 
-                  ? `<td style="text-align:center;color:${p === minP ? 'var(--green)' : 'var(--text-muted)'};font-weight:${p === minP ? '700' : '400'}">RD$${p.toFixed(2)}${p === minP ? ' ✓' : ''}</td>`
-                  : `<td style="text-align:center;color:var(--text-dim)">—</td>`
-                ).join('')}
-              </tr>`;
-            }).join('');
-          })()}</tbody>
-        </table>
-      </div>
-    </details>
-    
-    <p style="color:var(--text-dim);font-size:10px;margin:12px 0 0;text-align:center">⚠️ Precios referenciales de fuentes oficiales. Pueden variar por sucursal y ofertas. Actualizado: ${preciosLastUpdate || 'N/A'}</p>
+    <p style="color:var(--text-dim);font-size:10px;margin:12px 0 0;text-align:center">⚠️ Precios por unidad (${resultados.map(r=>r.u).filter((v,i,a)=>a.indexOf(v)===i).join(', ')}). Fuentes oficiales, pueden variar. Actualizado: ${preciosLastUpdate || 'N/A'}</p>
   </div>`;
 }
 
